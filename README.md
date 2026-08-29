@@ -1,7 +1,7 @@
 # 🌍 AFRAMP: Africa's Financial Bridge
 
 [![CI](https://github.com/aframp/aframp/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/aframp/aframp/actions/workflows/ci.yml)
-[![codecov](https://img.shields.io/badge/coverage-70%25-brightgreen)](https://codecov.io/gh/aframp/aframp)
+[[![codecov](https://img.shields.io/badge/coverage-1%25-red)](https://codecov.io/gh/Zarmaijemimah/Aframp)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/typescript-5.0-blue)](https://www.typescriptlang.org/)
 [![Next.js](https://img.shields.io/badge/next.js-16.1-black)](https://nextjs.org/)
