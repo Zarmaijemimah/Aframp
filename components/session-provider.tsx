@@ -62,6 +62,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const persist = useCallback((next: Session) => {
     try {
+      // SAFETY: Session only contains string fields (token, userId, merchantId),
+      // so plain JSON.stringify is safe here. The ESLint rule 'no-restricted-syntax'
+      // flags all JSON.stringify calls to prevent BigInt serialization errors.
+      //
+      // API response types with bigint fields (Balance, Payment, etc.) must NEVER
+      // be persisted through this path — use stringifyWithBigInts from lib/api.ts
+      // for those types.
+      // eslint-disable-next-line no-restricted-syntax
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
     } catch {
       // Storage may be unavailable (private mode, quota, blocked) — the
