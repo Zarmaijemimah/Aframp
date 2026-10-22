@@ -3,7 +3,7 @@
 import { use, useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import QRCode from 'react-qr-code'
-import { Check, Clock, Copy, TriangleAlert } from 'lucide-react'
+import { Check, Clock, Copy, Share2, TriangleAlert } from 'lucide-react'
 import { AframpMark } from '@/components/brand/aframp-mark'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -51,26 +51,90 @@ function CopyField({ label, value }: { label: string; value: string }) {
   }
 
   return (
-    <div className="flex items-start justify-between gap-3">
-      <div className="min-w-0 space-y-1">
-        <dt className="text-muted-foreground text-xs">{label}</dt>
-        <dd className="font-heading text-xs break-all select-all">{value}</dd>
-      </div>
+    <>
+      <dt className="text-foreground text-xs font-medium">{label}</dt>
+      <dd className="mb-2 flex items-start justify-between gap-3">
+        <span className="font-heading min-w-0 break-all text-xs select-all">{value}</span>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="shrink-0 gap-1.5"
+          onClick={() => void copy()}
+          aria-label={copied ? `${label} copied` : `Copy ${label.toLowerCase()}`}
+        >
+          {copied ? (
+            <Check className="size-3.5" aria-hidden />
+          ) : (
+            <Copy className="size-3.5" aria-hidden />
+          )}
+          {copied ? 'Copied' : 'Copy'}
+        </Button>
+      </dd>
+    </>
+  )
+}
+
+/** Lets the merchant hand the page to a customer on another device. */
+function ShareLink({ amount }: { amount: string }) {
+  const [copied, setCopied] = useState(false)
+  const [canShare, setCanShare] = useState(false)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // navigator.share only exists in the browser, so check after mount.
+  useEffect(() => {
+    setCanShare(typeof navigator.share === 'function')
+    return () => {
+      if (timer.current) clearTimeout(timer.current)
+    }
+  }, [])
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href)
+      setCopied(true)
+      if (timer.current) clearTimeout(timer.current)
+      timer.current = setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Clipboard blocked (e.g. insecure context): the URL is still in the address bar.
+    }
+  }
+
+  const share = async () => {
+    try {
+      await navigator.share({ title: `Pay ${amount}`, url: window.location.href })
+    } catch {
+      // The customer dismissed the share sheet, or sharing isn't allowed here.
+    }
+  }
+
+  return (
+    <div className="flex gap-2">
       <Button
         type="button"
         variant="outline"
-        size="sm"
-        className="shrink-0 gap-1.5"
+        className="flex-1 gap-1.5"
         onClick={() => void copy()}
-        aria-label={copied ? `${label} copied` : `Copy ${label.toLowerCase()}`}
+        aria-label={copied ? 'Payment link copied' : 'Copy payment link'}
       >
         {copied ? (
-          <Check className="size-3.5" aria-hidden />
+          <Check className="size-4" aria-hidden />
         ) : (
-          <Copy className="size-3.5" aria-hidden />
+          <Copy className="size-4" aria-hidden />
         )}
-        {copied ? 'Copied' : 'Copy'}
+        {copied ? 'Copied' : 'Copy payment link'}
       </Button>
+      {canShare && (
+        <Button
+          type="button"
+          variant="outline"
+          className="flex-1 gap-1.5"
+          onClick={() => void share()}
+        >
+          <Share2 className="size-4" aria-hidden />
+          Share
+        </Button>
+      )}
     </div>
   )
 }
@@ -220,7 +284,9 @@ export default function PaymentRequestPage({ params }: { params: Promise<{ id: s
         <p className="text-muted-foreground text-xs font-medium tracking-widest uppercase">
           {request.sep7_uri ? 'Ask your customer to scan' : 'Ask your customer to pay'}
         </p>
-        <p className="font-display text-4xl font-semibold tracking-tight tabular-nums">{amount}</p>
+        <h1 className="font-display text-4xl font-semibold tracking-tight tabular-nums">
+          {amount}
+        </h1>
       </header>
 
       {error && (
@@ -258,7 +324,7 @@ export default function PaymentRequestPage({ params }: { params: Promise<{ id: s
       {hasPartialPayment && (
         <div className="bg-muted/50 rounded-2xl p-4 text-sm">
           <div className="mb-2 flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">Paid so far</span>
+            <span className="text-foreground">Paid so far</span>
             <span className="font-semibold tabular-nums">
               {formatStroops(paidAmount)} / {formatStroops(request.amount_stroops)} {request.asset}
             </span>
@@ -281,8 +347,10 @@ export default function PaymentRequestPage({ params }: { params: Promise<{ id: s
         The reference must be included exactly, or the payment can&apos;t be matched to this charge.
       </p>
 
+      <ShareLink amount={amount} />
+
       <p
-        className="text-muted-foreground flex items-center justify-center gap-2 text-sm"
+        className="flex items-center justify-center gap-2 text-sm text-foreground"
         aria-live="polite"
       >
         <Clock className="size-4" aria-hidden />
