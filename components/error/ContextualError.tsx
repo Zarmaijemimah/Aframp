@@ -53,17 +53,25 @@ export default function ContextualError({ error, reset, homeHref }: Props) {
   }, [kind, router])
 
   switch (kind) {
-    case 'network':
+    case 'network': {
+      // Status 0 also covers a payment server that's down while the device
+      // is online, so only blame the connection when the browser says so.
+      const offline = typeof navigator !== 'undefined' && navigator.onLine === false
       return (
         <ErrorLayout
-          title="You're offline"
-          message="Check your connection and retry."
+          title={offline ? "You're offline" : 'Payment server unreachable'}
+          message={
+            offline
+              ? 'Check your connection and retry.'
+              : "We can't connect to the payment server right now. Please try again in a moment."
+          }
           actions={[
             { label: 'Retry', onClick: reset },
             { label: 'Go home', href: homeHref },
           ]}
         />
       )
+    }
     case 'unauthorized':
       return (
         <ErrorLayout

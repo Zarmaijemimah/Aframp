@@ -11,9 +11,15 @@ jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace, back }),
 }))
 
-jest.mock('@sentry/nextjs', () => ({
-  captureException: jest.fn(),
-}))
+// Jest's resolver can't match @sentry/nextjs's export conditions under this
+// repo's config, so register the mock without resolving the real package.
+jest.mock(
+  '@sentry/nextjs',
+  () => ({
+    captureException: jest.fn(),
+  }),
+  { virtual: true }
+)
 
 beforeEach(() => {
   jest.clearAllMocks()
@@ -41,11 +47,38 @@ describe('classifyError', () => {
 })
 
 describe('ContextualError', () => {
-  it('asks the user to check their connection on network errors', async () => {
+  it('says the payment server is unreachable when the device is online', async () => {
     const reset = renderError(new ApiError('offline', 0))
-    expect(screen.getByText('Check your connection and retry.')).toBeInTheDocument()
+    expect(screen.getByText('Payment server unreachable')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
     expect(reset).toHaveBeenCalled()
+  })
+
+  it('asks the user to check their connection when the device is offline', () => {
+    const onLine = jest.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    renderError(new ApiError('offline', 0))
+    expect(screen.getByText("You're offline")).toBeInTheDocument()
+    expect(screen.getByText('Check your connection and retry.')).toBeInTheDocument()
+    onLine.mockRestore()
+  })
+
+  it('classifies any error as network while the browser is offline', () => {
+    const onLine = jest.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    expect(classifyError(new Error('render crash'))).toBe('network')
+    onLine.mockRestore()
+  })
+
+  it('shows the generic message with retry for unknown errors', async () => {
+    const reset = renderError(new Error('render crash'))
+    expect(screen.getByText('Something went wrong')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(reset).toHaveBeenCalled()
+  })
+
+  it('shows the session-expired message with a login link on 401', () => {
+    renderError(new ApiError('expired', 401))
+    expect(screen.getByText('Session expired')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Log in' })).toHaveAttribute('href', '/login')
   })
 
   it('redirects to login on 401', () => {
